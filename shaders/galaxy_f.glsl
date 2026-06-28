@@ -5,7 +5,6 @@ out vec4 fragColor;
 uniform float osg_FrameTime;
 uniform vec2 u_resolution;
 
-
 float hash12(vec2 pos) {
     vec3 p3 = fract(vec3(pos.xyx) * 0.1031);
     p3 += dot(p3, p3.yzx + 33.33);
@@ -53,26 +52,26 @@ void main(){
     vec3 nebula_color = vec3(0.08, 0.04, 0.20) * mask_outer; // 広がる深い紫
     nebula_color += vec3(0.18, 0.05, 0.15) * mask_inner;   // 中心にいくほど鮮やかなマゼンタ
 
-    // ###############
-    // create solar flare
-    // ###############
-    vec2 sun_pos = vec2(0.0, 0.0); 
-    float dist_to_sun = length(uv_aspect - sun_pos);
+    // // ###############
+    // // create solar flare
+    // // ###############
+    // vec2 sun_pos = vec2(0.0, 0.0);
+    // float dist_to_sun = length(uv_aspect - sun_pos);
 
-    // Determining the size and extent of Light.
-    // To expand or contract the flare, adjust the value 0.085.
-    float flare_base = 0.085 / (dist_to_sun + 0.045);
+    // // Determining the size and extent of Light.
+    // // To expand or contract the flare, adjust the value 0.085.
+    // float flare_base = 0.085 / (dist_to_sun + 0.045);
     
-    // Make it fade out gradually.
-    // if the value of 2.8 if increased, the result will be a sharp ring; if decreased, will be a foggy, blurry glow.
-    float flare_glow = pow(flare_base, 2.8);
-    float sun_wave = noise(uv_aspect * 5.0 - osg_FrameTime * 0.5);
-    flare_glow += flare_glow * sun_wave * 0.12;
+    // // Make it fade out gradually.
+    // // if the value of 2.8 if increased, the result will be a sharp ring; if decreased, will be a foggy, blurry glow.
+    // float flare_glow = pow(flare_base, 2.8);
+    // float sun_wave = noise(uv_aspect * 5.0 - osg_FrameTime * 0.5);
+    // flare_glow += flare_glow * sun_wave * 0.12;
 
-    vec3 core_white = vec3(1.0, 1.0, 1.0) * pow(flare_glow, 2.0) * 0.8; 
-    vec3 outer_gold = vec3(1.0, 0.6, 0.18) * flare_glow;          
+    // vec3 core_white = vec3(1.0, 1.0, 1.0) * pow(flare_glow, 2.0) * 0.8; 
+    // vec3 outer_gold = vec3(1.0, 0.6, 0.18) * flare_glow;          
 
-    vec3 flare_color = clamp(core_white + outer_gold, 0.0, 1.05);
+    // vec3 flare_color = clamp(core_white + outer_gold, 0.0, 1.05);
 
     // ###############
     // create starts
@@ -93,5 +92,6 @@ void main(){
     vec3 circle = vec3(1.0 - smoothstep(length(fv - .25), .0, (sin(uv.x * 40.0) * cos(uv.y * 50.0)) * .015)); 
     vec3 final_starts = circle + clamp(cell_noise, .0, 1.0);
 
-    fragColor = vec4(final_starts + nebula_color + flare_color, 1.0);
+    // fragColor = vec4(final_starts + nebula_color + flare_color, 1.0);
+    fragColor = vec4(final_starts + nebula_color, 1.0);
 }

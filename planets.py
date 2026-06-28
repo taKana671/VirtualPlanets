@@ -2,13 +2,16 @@ import sys
 
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
-from panda3d.core import AmbientLight, DirectionalLight
 from panda3d.core import Point3, Vec3, Vec2, LColor
-from panda3d.core import NodePath
+from panda3d.core import NodePath, Camera
 from panda3d.core import AntialiasAttrib
-from panda3d.core import load_prc_file_data
+from panda3d.core import load_prc_file_data, CardMaker, PerspectiveLens
+from panda3d.core import Shader, Texture  # , FilterManager
+from direct.filter.FilterManager import FilterManager
+from shapes import Box, Sphere
 
 from scene import Scene
+from lights import GalaxyAmbientLight, SunPointLignt
 
 
 load_prc_file_data("", """
@@ -28,18 +31,20 @@ class Planets(ShowBase):
         super().__init__()
         self.disable_mouse()
         self.render.set_antialias(AntialiasAttrib.MAuto)
-        self.setBackgroundColor(0., 0., 0.)
+        # self.setBackgroundColor(0., 0., 0., 0.)
+        self.win.set_clear_color((0, 0, 0, 0))
 
         self.camera_root = NodePath('camera_root')
         self.camera_root.reparent_to(self.render)
         self.camera.reparent_to(self.camera_root)
-        self.camera.set_pos(Point3(0, -100, 5))
+        self.camera.set_pos(Point3(0, -100, 0))
         self.camera.look_at(Point3(0, 0, 0))
 
         # self.particles = BoxCollection()
         # self.particles.create()
         self.scene = Scene()
-        self.setup_light()
+        self.ambient_light = GalaxyAmbientLight()
+        self.sun_light = SunPointLignt(self.scene.sun)
 
         self.clicked = False
         self.dragging = False
@@ -53,34 +58,35 @@ class Planets(ShowBase):
 
         self.taskMgr.add(self.update, 'update')
 
-    def setup_light(self):
-        ambient_light = NodePath(AmbientLight('ambient_light'))
-        ambient_light.reparent_to(self.render)
-        ambient_light.node().set_color(LColor(0.6, 0.6, 0.6, 1.0))
-        self.render.set_light(ambient_light)
+        ########## sky ##########
+        box_np = NodePath('box')
+        sky_region = self.win.make_display_region(0, 1, 0, 1)
+        cam = Camera('sky_cam')
+        sky_cam = NodePath(cam)
+        sky_cam.node().set_lens(self.camLens)
+        sky_cam.reparent_to(box_np)
+        sky_region.set_camera(sky_cam)
+        sky_region.set_sort(-1000)
+        box = Box(3000, 3000, 3000).create()
+        box.set_pos(0, 0, 0)
+        box.reparent_to(box_np)
+        # box = Sphere(radius=500).create()
+        # box_np.set_pos(0, 0, 0)
+        # box.reparent_to(box_np)
+        # box_np.reparent_to(self.render)
 
-        directional_light = NodePath(DirectionalLight('directional_light'))
-        directional_light.node().get_lens().set_film_size(200, 200)
-        directional_light.node().get_lens().set_near_far(1, 100)
-        directional_light.node().set_color(LColor(1, 1, 1, 1))
-        directional_light.set_pos_hpr(Point3(0, 0, 50), Vec3(-30, -45, 0))
-        # directional_light.node().show_frustom()
-        self.render.set_light(directional_light)
-        directional_light.node().set_shadow_caster(True)
-        self.render.set_shader_auto()
+        custom_shader = Shader.load(Shader.SL_GLSL, 'shaders/galaxy_v.glsl', 'shaders/galaxy_f.glsl')
+        box.set_shader(custom_shader)
+        props = self.win.get_properties()
+        win_size = props.get_size()
+        # aspect_ratio = win_size.get_x() / win_size.get_y()
 
-    # def start_move_particles(self):
-    #     delay_time = 0
-
-    #     if self.particles.all_detached:
-    #         self.particles.reset()
-    #         delay_time = 0.5
-
-    #     def callback(task):
-    #         self.do_move = True
-    #         return task.done
-
-    #     base.task_mgr.do_method_later(delay_time, callback, 'start_move')
+        box.set_shader_input('u_resolution', win_size)
+        # box.set_shader_input('alpha', 1.0)
+        # import pdb; pdb.set_trace()
+        
+        # import pdb; pdb.set_trace()
+        # box.set_shader_input('u_sun_3d_pos', self.scene.sun.get_pos())
 
     def mouse_click(self):
         self.dragging = True
