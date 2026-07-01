@@ -5,13 +5,11 @@ from direct.filter.CommonFilters import CommonFilters
 from direct.showbase.ShowBaseGlobal import globalClock
 
 from panda3d.core import NodePath, PandaNode, RenderAttrib
-from panda3d.core import Point3, Vec3, LColor, LRotation
+from panda3d.core import Point3, Vec3, LColor, LRotation, Camera
 from panda3d.core import PNMImage, Texture, TextureStage, StackedPerlinNoise2
 from direct.particles.ParticleEffect import ParticleEffect
 from direct.particles.Particles import Particles
 from direct.particles.ForceGroup import ForceGroup
-# from direct.particles.LinearVectorForce import LinearVectorForce
-# from direct.tkpanels.ParticlePanel import ParticlePanel
 from panda3d.core import TransparencyAttrib
 from panda3d.core import Shader
 
@@ -23,105 +21,38 @@ from panda3d.physics import SparkleParticleRenderer
 from panda3d.physics import SphereSurfaceEmitter, BaseParticleRenderer
 from panda3d.core import GeomVertexData, GeomVertexFormat
 from panda3d.core import GeomEnums, Geom, GeomNode, GeomPoints
-
+from panda3d.core import LQuaternion
 
 from noise import PerlinNoise, SimplexNoise, TileableSimplexNoise, Fractal2D, TileablePerlinNoise, Fractal3D
 from noise import PerlinCurlNoise3D
 import numpy as np
 
-from shapes import Plane
+from shapes import Plane, Box, EllipticalPrism
 from shapes.create_geometry import ProceduralGeometry
 
 
 
-# @dataclass
-# class Planet:
+@dataclass
+class PlanetInfo:
 
-#     name: str
-#     rx: float
-#     rz: float
-#     speed: float
-#     tilt: tuple
+    name: str
+    rx: float
+    ry: float
+    speed: float
+    tilt: Vec3
+    scale: float
+    eccentricity: float
+    file: str
 
-#     def create_planet(self):
-#         return SphereModel(
-#             rx=self.rx,
-#             rz=self.rz,
-#             speed=self.speed,
+    def __post_init__(self):
+        self.orbit_major_axis = self.rx * 2,
+        self.orbit_minor_axis = self.ry * 2,
 
+    def planet_model_info(self):
+        pass
 
-
-#         )
-
-class TextureAtlas:
-
-    def __init__(self, file_name, cols=5, rows=3):
-        self.texture = self.load(file_name)
-        self.div_u = 1 / cols
-        self.div_v = 1 / rows
-        self.rows = rows
-        self.cols = cols
-
-    def load(self, file_name):
-        # path = f'textures/{file_name}'
-        path = f'{file_name}'
-        tex = base.loader.load_texture(path)
-        return tex
-
-
-
-class TextureAtlasNode(ProceduralGeometry):
-    """A class to create a plane.
-
-        Args:
-            width (float): dimension along the x-axis; greater than 0; default is 2.
-            depth (float): dimension along the y-axis; greater than 0; default is 2.
-            segs_w (int) the number of subdivisions in width; greater than 0; default is 6.
-            segs_d (int) the number of subdivisions in depth; greater than 0; default is 6.
-    """
-
-    # def __init__(self, divided_u, divides_v):
-    def __init__(self):
-        self.color = (1, 1, 1, 1)
-        # self.end_u = divided_u
-        # self.start_v = 1 - divides_v
-
-    def get_geom_node(self):
-        vdata_values = array.array('f', [])
-        prim_indices = array.array('H', [])
-
-        vertices = [
-            (-0.5, 0, 0.5),
-            (-0.5, 0, -0.5),
-            (0.5, 0, 0.5),
-            (0.5, 0, -0.5),
-        ]
-        # order is important
-        uvs = [
-            (0, 1),
-            (0, 0),
-            (1, 1),
-            (1, 0),
-        ]
-
-        normal = Vec3(0, 1, 0)
-        for i, (vertex, uv) in enumerate(zip(vertices, uvs)):
-            vdata_values.extend(vertex)
-            vdata_values.extend(self.color)
-            vdata_values.extend(Vec3(vertex).normalized())
-            vdata_values.extend(uv)
-
-        idx = 2
-        prim_indices.extend((idx, idx - 2, idx - 1))
-        prim_indices.extend((idx, idx - 1, idx + 1))
-        # prim_indices.extend((0, 1, 2))
-        # prim_indices.extend((2, 1, 3))
-
-        vertex_cnt = len(vertices)
-        geom_node = self.create_geom_node(
-            vertex_cnt, vdata_values, prim_indices, self.__class__.__name__.lower())
-
-        return geom_node
+    def orbit_model_info(self):
+        pass
 
 
 class RotationalComponent:
@@ -153,155 +84,61 @@ class RotationalComponent:
         return f'noise_scale: {self.noise_scale}, flow_strength: {self.flow_strength}'
 
 
-class Particles(NodePath):
+class Galaxy(NodePath):
 
-    def __init__(self):
-        geom_node = self.create_particles()
-        super().__init__(geom_node)
-        # self.sun = sun
+    def __init__(self, size=3000):
+        super().__init__(PandaNode('galaxy'))
+        box = Box(size, size, size).create()
+        box.reparent_to(self)
+        self.create_camera()
 
-        # self.attach_new_node(geom_node)
-        self.set_transparency(True)
-        self.set_render_mode_thickness(1.2)
+        shader = Shader.load(Shader.SL_GLSL, 'shaders/galaxy_v.glsl', 'shaders/galaxy_f.glsl')
+        box.set_shader(shader)
+        props = base.win.get_properties()
+        win_size = props.get_size()
+        box.set_shader_input('u_resolution', win_size)
 
-        self.set_color(LColor(1.0, 0.9, 0.2, 1.0))
-
-        self.rotational_component = RotationalComponent(
-            [0, 0, 300], [0, 0, 600], noise_scale=1.05, flow_strength=4)
-
-    def create_particles(self):
-        vertices_cnt = 5000
-        u = np.random.normal(0, 1, size=(vertices_cnt, 3))
-        d = np.linalg.norm(u, axis=1)
-        r = (np.random.uniform(0, 1, size=(vertices_cnt, 1)) ** (1/3)) * 2
-        points = u * (r / d[:, np.newaxis])
-
-        vdata_values = array.array('f', points.flatten())
-
-        vdata = GeomVertexData('particles', GeomVertexFormat.get_v3(), Geom.UH_static)
-        vdata.unclean_set_num_rows(vertices_cnt)
-        vdata_mem = memoryview(vdata.modify_array(0)).cast('B').cast('f')
-        vdata_mem[:] = vdata_values
-
-        prim = GeomPoints(GeomEnums.UH_static)
-        prim.add_next_vertices(vertices_cnt)
-
-        geom = Geom(vdata)
-        geom.add_primitive(prim)
-        geom_node = GeomNode('points')
-        geom_node.add_geom(geom)
-
-        return geom_node
-
-    def move_particles(self, dt):
-        geom_nd = self.node()
-        geom = geom_nd.modify_geom(0)
-        vdata = geom.modify_vertex_data()
-        vdata_arr = vdata.modify_array(0)
-        vdata_mem = memoryview(vdata_arr).cast('B').cast('f')
-
-        for i in range(0, len(vdata_mem), 3):
-            pos = np.array(vdata_mem[i: i + 3])
-            vec = self.rotational_component.compute(pos, dt)
-            next_pos = pos + Vec3(*vec)
-
-            vdata_mem[i] = next_pos[0]
-            vdata_mem[i + 1] = next_pos[1]
-            vdata_mem[i + 2] = next_pos[2]
-
-
-class SolarFlare1(NodePath):
-
-    def __init__(self, sun):
-        super().__init__('SolarFlare')
-        self.sun = sun
-        self.tex = TextureAtlas('new_flare.png')
-        atlas_np = TextureAtlasNode(self.tex.div_u, self.tex.div_v).create()
-        atlas_np.reparent_to(self)
-        atlas_np.set_pos(Point3(0, 0, 0))
-
-        self.set_attrib(ColorBlendAttrib.make(
-            ColorBlendAttrib.M_add,
-            ColorBlendAttrib.O_incoming_alpha,
-            ColorBlendAttrib.O_one
-        ))
-
-        self.set_texture(TextureStage.get_default(), self.tex.texture, 1)
-        self.set_bin('fixed', 40)
-        # self.set_depth_write(False)
-        # self.set_depth_test(False)
-        self.set_light_off()
-        self.set_scale(13)
-        self.set_hpr(Vec3(0))
-        self.flatten_light()
-
-        self.pos_u = -self.tex.div_u
-        self.pos_v = 0
-        self.offset = Vec3(0)
-
-    def run(self):
-        # self.set_pos(self.sun.get_pos(base.render) + self.offset)
-
-        self.pos_u += self.tex.div_u
-
-        # go to the next row
-        if self.pos_u >= 1.0:
-            self.pos_u = 0
-            self.pos_v -= self.tex.div_v
-
-        # comes to the end
-        print(self.pos_u, self.pos_v)
-        self.look_at(base.camera)
-        self.set_tex_offset(TextureStage.get_default(), self.pos_u, self.pos_v)    
-
+    def create_camera(self):
+        region = base.win.make_display_region(0, 1, 0, 1)
+        cam = NodePath(Camera('sky_cam'))
+        cam.node().set_lens(base.camLens)
+        cam.reparent_to(self)
+        region.set_camera(cam)
+        region.set_sort(-1000)
 
 
 class SolarFlare(NodePath):
 
-    def __init__(self):
+    def __init__(self, sun):
         super().__init__(PandaNode('solar_flare'))
-        # self.panel = Plane(10, 10, 4, 4).create()
-        self.panel = TextureAtlasNode().create()
-        self.panel.set_scale(15)
-
+        # self.panel = Plane(15, 15, 4, 4).create()
+        self.panel = Plane(20, 20, 4, 4).create()
         self.panel.reparent_to(self)
         self.set_transparency(TransparencyAttrib.MAlpha)
-
-        self.set_pos(Point3(0, 0, 0))
-        # self.set_p(90)
-
+        self.set_pos(sun.get_pos())
+        self.set_p(90)
         self.setBillboardPointEye()
 
-        custom_shader = Shader.load(Shader.SL_GLSL, 'shaders/flare_v.glsl', 'shaders/flare_f.glsl')
-        self.set_shader(custom_shader)
 
-
-
+        shader = Shader.load(Shader.SL_GLSL, 'shaders/flare_v.glsl', 'shaders/flare_f.glsl')
+        self.set_shader(shader)
 
 
 class Sun(NodePath):
 
     def __init__(self):
         super().__init__(PandaNode('sun'))
-        self.model = base.loader.load_model('models/sphere_rad2.bam')
-
+        self.model = base.loader.load_model('models/sun.bam')
         self.model.reparent_to(self)
-        self.set_scale(1.5)
+        # self.set_scale(1.5)
+        self.set_scale(2.0)
+        self.setup_textures()
+        base.task_mgr.add(self.update, 'update_sun')
 
-        # noise = PerlinNoise()
+    def create_texture_img(self):
         noise = TileablePerlinNoise()
         noise = Fractal2D(noise.pnoise2)
 
-        # noise = SimplexNoise()
-        # noise = TileableSimplexNoise()
-        # noise = Fractal2D(noise.snoise2)
-        # noise = StackedPerlinNoise2(0.3, 0.3, 4, 2.0, 0.5)
-        
-        # self.solar_flare = Particles()
-        # self.solar_flare.reparent_to(self)
-        
-        
-        self.counter = 0
         size = 256
         img = PNMImage(size, size, 3)
 
@@ -309,19 +146,9 @@ class Sun(NodePath):
         color_mid = LColor(1.0, 0.3, 0.0, 1.0)
         color_high = LColor(1.0, 0.9, 0.2, 1.0)
 
-        # fractal perlin
         for j, y in enumerate(np.linspace(0, 12, size)):
             for i, x in enumerate(np.linspace(0, 12, size)):
-        
-        # fratal simplex
-        # for j, y in enumerate(range(size)):
-        #     for i, x in enumerate(range(size)):
-        
-                # fractal perlin
                 if (val := noise.fractal(x, y)) < 0.5:
-                
-                # fractal simplex
-                # if (val := noise.fractal(x / size * 10, y / size * 10)) < 0.5:
                     t = val * 2.0
                     final_color = color_dark * (1.0 - t) + color_mid * t
                 else:
@@ -330,41 +157,26 @@ class Sun(NodePath):
 
                 img.set_xel(i, j, final_color.get_xyz())
 
-        self.sun_tex1 = Texture()
-        self.sun_tex1.load(img)
-        self.sun_tex1.set_wrap_u(Texture.WM_repeat)
-        self.sun_tex1.set_wrap_v(Texture.WM_repeat)
+        return img
+
+    def setup_textures(self):
+        img = self.create_texture_img()
+
+        sun_tex = Texture()
+        sun_tex.load(img)
+        sun_tex.set_wrap_u(Texture.WM_repeat)
+        sun_tex.set_wrap_v(Texture.WM_repeat)
 
         self.ts1 = TextureStage('sun_ts1')
         self.ts1.set_mode(TextureStage.M_modulate)
-        # self.ts1.set_mode(TextureStage.MModulateGlow)  # #######
-        self.set_texture(self.ts1, self.sun_tex1)
+        self.set_texture(self.ts1, sun_tex)
 
         self.ts2 = TextureStage('sun_tx2')
         self.ts2.set_mode(TextureStage.M_add)
-        # self.ts2.set_mode(TextureStage.M_glow)  # ########
-        self.set_texture(self.ts2, self.sun_tex1)
+        self.set_texture(self.ts2, sun_tex)
+
         self.set_tex_scale(self.ts2, 1.5, 1.5)
-
         self.set_color_scale((2.0, 1.8, 1.2, 1.0))
-
-        # base.filter = CommonFilters(base.win, base.cam)
-        # # base.filters.set_bloom(
-        # #     blend=(0.3, 0.3, 0.3, 1.0),
-        # #     desat=-0.3,
-        # #     intensity=5.0,
-        # #     size="large",
-        # #     # glowMethod=RenderAttrib.M_glow
-        # # ) 
-        # # base.filter.set_bloom(
-        # #     blend=(0, 0, 0, 1.0), mintrigger=0.6, maxtrigger=1.0, desat=0., intensity=1.0, size="medium")
-
-        # base.filter.set_bloom(
-        #     blend=(0, 0, 0, 1.0), mintrigger=0.0, desat=0., intensity=1.0, size="medium")
-        
-
-
-        base.task_mgr.add(self.update, 'update_sun')
 
     def update(self, task):
         dt = globalClock.get_dt()
@@ -376,53 +188,42 @@ class Sun(NodePath):
         offset_v2 = task.time * -0.04
         self.set_tex_offset(self.ts2, offset_u2, offset_v2)
 
-        self.set_h(self.get_h() + 10 * dt)  # これいる？
-       
-        # if self.counter % 4 == 0:
-        #     self.solar_flare.run()
-        # self.counter += 1
-        # if self.counter % 4 == 0:
-        #     self.solar_flare.move_particles(dt)
-        # self.counter += 1
-
+        self.set_h(self.get_h() + 10 * dt)
         return task.cont
 
-        # base color
-        # self.set_color(LColor(1.0, 0.6, 0.1, 1.0))
-        # self.set_color_scale(LC
-     
 
+class Planet(NodePath):
 
-
-
-class SphereModel(NodePath):
-
-    def __init__(self, rx, rz, speed, tilt, file):
+    def __init__(self, rx, ry, speed, tilt, scale, eccentricity, file):
         super().__init__(PandaNode('sphere'))
-        # self.model = base.loader.load_model('models/sphere_rad2.bam')
         self.model = base.loader.load_model(f'models/{file}')
         self.model.reparent_to(self)
-        self.set_scale(0.5)
-
-        # self.set_color(LColor(1, 0, 0, 1), 1)
-
-        # self.rx = 28.0
-        # self.rz = 18.0
-        # self.speed = 0.8
-        # self.tilt = Vec3(-10, 25, 0)
-        # self.angle = 0
-
-        # self.rx = 50.0
-        # self.rz = 30.0
-        # self.speed = 0.2
-        # self.tilt = Vec3(45, 0, 45)
-        # self.angle = 0
+        self.set_scale(scale)
 
         self.rx = rx
-        self.rz = rz
+        self.ry = ry
         self.speed = speed
         self.tilt = tilt
+        self.eccentricity = eccentricity
         self.angle = 0
+        self.max_distance = max(self.rx, self.ry) ** 2
+
+    def orbit(self, sun_pos, dt):
+        if self.angle > math.tau:
+            self.angle -= math.tau
+
+        seed_multiplier = 1.0 / (1.0 + self.eccentricity * math.cos(self.angle))
+        self.angle += self.speed * seed_multiplier * dt
+
+        x = math.cos(self.angle) * self.rx
+        y = math.sin(self.angle) * self.ry
+        pos = Vec3(x, y, 0)
+
+        tilt_rot = LRotation(*self.tilt)
+        tilted_pos = tilt_rot.xform(pos)
+        final_pos = sun_pos + tilted_pos
+        hpr = Vec3(self.get_h() + 50 * dt, 0, 0)
+        self.set_pos_hpr(final_pos, hpr)
 
 
 class Scene:
@@ -430,60 +231,40 @@ class Scene:
     def __init__(self):
         self.root = NodePath('root')
         self.root.reparent_to(base.render)
-        # self.sphere = SphereModel()
-        # self.sphere.reparent_to(self.root)
-        # self.sphere.set_pos(Point3(0, 0, 0))
+
+        self.galaxy = Galaxy()
 
         self.sun = Sun()
-        # self.sun_pos = Point3(0, 0, 0)
         self.sun.reparent_to(self.root)
 
-        self.solar_flare = SolarFlare()
+        self.solar_flare = SolarFlare(self.sun)
         self.solar_flare.reparent_to(self.root)
-      
 
         self.planets = [
-            # SphereModel(rx=10.0, rz=10.0, speed=2.0, tilt=(0, 0, 0)),
-            SphereModel(rx=18.0, rz=14.0, speed=1.2, tilt=(15, 0, 5), file='Island_20260620214009.bam'),
-            SphereModel(rx=28.0, rz=18.0, speed=0.8, tilt=(-10, 25, 0), file='Desert_20260627004013.bam'),
-            SphereModel(rx=38.0, rz=35.0, speed=0.5, tilt=(5, 45, -5), file='Mountain_20260627003433.bam'),
-            SphereModel(rx=50.0, rz=30.0, speed=0.2, tilt=(45, 0, 45), file='Snow_20260627003913.bam'),
+            Planet(rx=12.0, ry=9.0, speed=1.6, tilt=(15, 0, 5), scale=0.25, eccentricity=0.0, file='snow.bam'),
+            Planet(rx=20.0, ry=15.0, speed=1.0, tilt=(-10, 25, 0), scale=0.4, eccentricity=0.2, file='desert.bam'),
+            Planet(rx=29.0, ry=21.75, speed=0.6, tilt=(5, 45, -5), scale=0.6, eccentricity=0.45, file='earth.bam'),
+            Planet(rx=38.0, ry=28.5, speed=0.3, tilt=(25, -20, 15), scale=0.45, eccentricity=0.55, file='green.bam'),
+            Planet(rx=48.0, ry=36.0, speed=0.12, tilt=(-30, 10, 25), scale=0.65, eccentricity=0.65, file='ice.bam'),
         ]
+        self.create_planets()
 
-        for i, planet in enumerate(self.planets):
+    def create_planets(self):
+        for planet in self.planets:
             planet.reparent_to(self.root)
 
-            if i == 0:
-                self.island = planet
+            orbit_model = EllipticalPrism(
+                major_axis=planet.rx * 2,
+                minor_axis=planet.ry * 2,
+                thickness=0.02,
+                height=0.02
+            ).create()
+
+            orbit_model.set_hpr(planet.tilt)
+            orbit_model.reparent_to(self.root)
 
     def update(self, dt):
+        sun_pos = self.sun.get_pos()
+
         for planet in self.planets:
-            planet.angle += planet.speed * dt
-
-            x = math.cos(planet.angle) * planet.rx
-            z = math.sin(planet.angle) * planet.rz
-            pos = Vec3(x, 0, z)
-
-            tilt_rot = LRotation(*planet.tilt)
-            tilted_pos = tilt_rot.xform(pos)
-            final_pos = self.sun.get_pos() + tilted_pos
-            planet.set_pos(final_pos)
-            planet.set_pos(final_pos)
-            planet.set_h(planet.get_h() + 50 * dt)
-
-
-
-        # self.sphere.angle += self.sphere.speed * dt
-
-        # x = math.cos(self.sphere.angle) * self.sphere.rx
-        # z = math.sin(self.sphere.angle) * self.sphere.rz
-        # pos = Vec3(x, 0, z)
-
-        # tilt_rot = LRotation(*self.sphere.tilt)
-        # tilted_pos = tilt_rot.xform(pos)
-        # final_pos = self.sun_pos + tilted_pos
-        # self.sphere.set_pos(final_pos)
-        # self.sphere.set_pos(final_pos)
-        # self.sphere.set_h(self.sphere.get_h() + 50 * dt)
-
-
+            planet.orbit(sun_pos, dt)

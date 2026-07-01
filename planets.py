@@ -2,13 +2,10 @@ import sys
 
 from direct.showbase.ShowBase import ShowBase
 from direct.showbase.ShowBaseGlobal import globalClock
-from panda3d.core import Point3, Vec3, Vec2, LColor
-from panda3d.core import NodePath, Camera
+from panda3d.core import Point3, Vec3, Vec2
+from panda3d.core import NodePath
 from panda3d.core import AntialiasAttrib
-from panda3d.core import load_prc_file_data, CardMaker, PerspectiveLens
-from panda3d.core import Shader, Texture  # , FilterManager
-from direct.filter.FilterManager import FilterManager
-from shapes import Box, Sphere
+from panda3d.core import load_prc_file_data
 
 from scene import Scene
 from lights import GalaxyAmbientLight, SunPointLignt
@@ -32,12 +29,12 @@ class Planets(ShowBase):
         self.disable_mouse()
         self.render.set_antialias(AntialiasAttrib.MAuto)
         # self.setBackgroundColor(0., 0., 0., 0.)
-        self.win.set_clear_color((0, 0, 0, 0))
+        # self.win.set_clear_color((0, 0, 0, 0))
 
         self.camera_root = NodePath('camera_root')
         self.camera_root.reparent_to(self.render)
         self.camera.reparent_to(self.camera_root)
-        self.camera.set_pos(Point3(0, -100, 0))
+        self.camera.set_pos(Point3(0, -100, 100))
         self.camera.look_at(Point3(0, 0, 0))
 
         # self.particles = BoxCollection()
@@ -57,36 +54,6 @@ class Planets(ShowBase):
         # self.accept('m', self.start_move_particles)
 
         self.taskMgr.add(self.update, 'update')
-
-        ########## sky ##########
-        box_np = NodePath('box')
-        sky_region = self.win.make_display_region(0, 1, 0, 1)
-        cam = Camera('sky_cam')
-        sky_cam = NodePath(cam)
-        sky_cam.node().set_lens(self.camLens)
-        sky_cam.reparent_to(box_np)
-        sky_region.set_camera(sky_cam)
-        sky_region.set_sort(-1000)
-        box = Box(3000, 3000, 3000).create()
-        box.set_pos(0, 0, 0)
-        box.reparent_to(box_np)
-        # box = Sphere(radius=500).create()
-        # box_np.set_pos(0, 0, 0)
-        # box.reparent_to(box_np)
-        # box_np.reparent_to(self.render)
-
-        custom_shader = Shader.load(Shader.SL_GLSL, 'shaders/galaxy_v.glsl', 'shaders/galaxy_f.glsl')
-        box.set_shader(custom_shader)
-        props = self.win.get_properties()
-        win_size = props.get_size()
-        # aspect_ratio = win_size.get_x() / win_size.get_y()
-
-        box.set_shader_input('u_resolution', win_size)
-        # box.set_shader_input('alpha', 1.0)
-        # import pdb; pdb.set_trace()
-        
-        # import pdb; pdb.set_trace()
-        # box.set_shader_input('u_sun_3d_pos', self.scene.sun.get_pos())
 
     def mouse_click(self):
         self.dragging = True

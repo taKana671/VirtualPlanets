@@ -40,12 +40,11 @@ void main(){
     float dist_to_sun = length(v_uv - center_pos);
 
     // Determining the size and extent of Light.
-    // To expand or contract the flare, adjust the value 0.085.
-    // float flare_base = 0.085 / (dist_to_sun + 0.045);
+    // To expand or contract the flare, adjust the value 0.23.
     float flare_base = 0.23 / (dist_to_sun + 0.065);
-    
+   
     // Make it fade out gradually.
-    // if the value of 2.8 if increased, the result will be a sharp ring; if decreased, will be a foggy, blurry glow.
+    // if the value of 2.4 is increased, the result will be a sharp ring; if decreased, will be a foggy, blurry glow.
     float flare_glow = pow(flare_base, 2.4);
 
     float sun_wave = noise(v_uv * 5.0 - osg_FrameTime * 0.5);
@@ -55,7 +54,9 @@ void main(){
     vec3 outer_gold = vec3(1.0, 0.6, 0.18) * flare_glow;          
 
     vec3 flare_color = clamp(core_white + outer_gold, 0.0, 1.05);
-    float alpha = 1.0 - smoothstep(0.1, 0.52, dist_to_sun);
+    // If increase the size of the sun, increase the starting point (now, 0.18) of smoothstep (the position where the light begins to fade).
+    // float alpha = 1.0 - smoothstep(0.1, 0.52, dist_to_sun);
+    float alpha = 1.0 - smoothstep(0.18, 0.55, dist_to_sun);
 
     fragColor = vec4(flare_color, alpha);
 }
