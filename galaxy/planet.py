@@ -3,7 +3,7 @@ from typing import NamedTuple
 
 import numpy as np
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Point3, Vec3, LColor, LRotation
+from panda3d.core import Point3, Vec3, LRotation
 from panda3d.core import TransparencyAttrib
 from panda3d.core import Shader
 
@@ -15,25 +15,18 @@ from voronoi_generator.voronoi_3d.clip2sphere import VoronoiClip2Sphere
 
 class Planet(NodePath):
 
-    def __init__(self, orbit, speed, scale, file):
-        super().__init__(PandaNode('sphere'))
+    def __init__(self, name, speed, scale, orbit):
+        super().__init__(PandaNode(name))
         self.directional_nd = NodePath('directional_nd')
         self.directional_nd.reparent_to(self)
 
-        self.model = base.loader.load_model(f'models/{file}')
+        self.model = base.loader.load_model(f'models/{name}.bam')
         self.model.reparent_to(self.directional_nd)
         self.set_scale(scale)
 
         self.orbit = orbit
         self.speed = speed
         self.angle = 0
-
-        # self.rx = rx
-        # self.ry = ry
-        # self.speed = speed
-        # self.tilt = tilt
-        # self.eccentricity = eccentricity
-        # self.angle = 0
 
     def get_size(self):
         end, tip = self.model.getTightBounds()
@@ -84,7 +77,7 @@ class ParticleRing(NodePath):
         self.set_render_mode_thickness(particle_size)
         self.set_color(color)
         self.set_transparency(TransparencyAttrib.MAlpha)
-        self.set_p(hpr)
+        self.set_hpr(hpr)
 
     def create_particles(self, planet, ring_thickness, n):
         # Get the approximate radius.
@@ -146,13 +139,10 @@ class Asteroid(NamedTuple):
 
 class AsteroidBelt(NodePath):
 
-    def __init__(self, asteroids, rx, ry, tilt, delay=0.15):
+    def __init__(self, asteroids, planet, orbit):
         super().__init__(PandaNode('asteroid_belt'))
-        self.rx = rx
-        self.ry = ry
-        self.tilt = tilt
-        self.delay = delay
-
+        self.orbit = orbit
+        self.planet = planet
         self.asteroids = [a for a in self.create_astroid_belt(asteroids)]
 
     def get_random_scale(self):
@@ -194,17 +184,19 @@ class AsteroidBelt(NodePath):
                 is_front=True
             )
 
-    def revolve(self, planet_angle, sun_pos):
-        tilt_rot = LRotation(*self.tilt)
+    # def revolve(self, planet_angle, sun_pos):
+    def revolve(self, sun_pos, _):
+        tilt_rot = LRotation(*self.orbit.tilt)
 
         for asteroid in self.asteroids:
             if asteroid.is_front:
-                angle = planet_angle + asteroid.base_delay
+                # angle = planet_angle + asteroid.base_delay
+                angle = self.planet.angle + asteroid.base_delay
             else:
-                angle = planet_angle - asteroid.base_delay
+                angle = self.planet.angle - asteroid.base_delay
 
-            x = math.cos(angle) * self.rx
-            y = math.sin(angle) * self.ry
+            x = math.cos(angle) * self.orbit.rx
+            y = math.sin(angle) * self.orbit.ry
 
             # By adding `side_spread` based on the orientation of the ellipse (cos, sin),
             # the trail will not extend beyond the orbit ring and will trail neatly behind it.
