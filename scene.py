@@ -6,7 +6,8 @@ from panda3d.core import Point3, Vec3, LColor
 
 from galaxy.galaxy import Galaxy
 from galaxy.sun import Sun
-from galaxy.planet import Planet, OrbitLine, ParticleRing, Atmosphere, Asteroids, AsteroidBelt
+from galaxy.planet import Planet, OrbitLine, ParticleRing, Atmosphere
+from galaxy.asteroid_belt import Asteroids, AsteroidBelt
 from noise import PerlinCurlNoise3D
 
 
@@ -39,13 +40,15 @@ class RotationalComponent:
         return f'noise_scale: {self.noise_scale}, flow_strength: {self.flow_strength}'
 
 
-class OrbitInfo(NamedTuple):
+@dataclass(frozen=True)
+class OrbitDetails:
 
     rx: float
     ry: float
     tilt: Vec3
     eccentricity: float
     delay: float = None
+    planet_name: str = None
 
     @property
     def major_axis(self):
@@ -56,59 +59,56 @@ class OrbitInfo(NamedTuple):
         return self.ry * 2
 
 
-class RingInfo(NamedTuple):
+@dataclass(frozen=True)
+class RingDetails:
 
     color: LColor
     hpr: Vec3
     particle_size: float
     particle_cnt: int
-    ring_thickness: float
+    thickness: float
+    planet_name: str = None
 
 
-class AsteroidBeltInfo(NamedTuple):
+class AsteroidBeltDetails(NamedTuple):
 
-    orbit: OrbitInfo
+    orbit: OrbitDetails
+    asteroids: NodePath
 
 
-class AtmosphereInfo(NamedTuple):
+@dataclass(frozen=True)
+class AtmosphereDetails:
 
     hpr: Vec3
     scale: float
+    planet_name: str = None
 
 
-@dataclass
-class PlanetInfo:
+@dataclass(frozen=True)
+class PlanetDetails:
 
     name: str
     speed: float
     scale: float
-    orbit: OrbitInfo = None
-    ring: RingInfo = None
-    atmosphere: AtmosphereInfo = None
-    asteroid_belt: OrbitInfo = None
+    orbit: OrbitDetails = None
+    ring: RingDetails = None
+    atmosphere: AtmosphereDetails = None
+    asteroids: AsteroidBeltDetails = None
+
+    def __post_init__(self):
+        if self.orbit:
+            object.__setattr__(self.orbit, 'planet_name', self.name)
+            print(self.orbit)
+        if self.ring:
+            object.__setattr__(self.ring, 'planet_name', self.name)
+            print(self.ring)
+        if self.atmosphere:
+            object.__setattr__(self.atmosphere, 'planet_name', self.name)
+            print(self.atmosphere)
 
     @property
     def planet(self):
         return self.name, self.speed, self.scale, self.orbit
-
-
-
-
-# class Orbit(NamedTuple):
-
-#     rx: float
-#     ry: float
-#     tilt: Vec3
-#     eccentricity: float
-#     delay: float = None
-
-#     @property
-#     def major_axis(self):
-#         return self.rx * 2
-
-#     @property
-#     def minor_axis(self):
-#         return self.ry * 2
 
 
 class Scene:
@@ -133,67 +133,47 @@ class Scene:
         #     Planet(rx=48.0, ry=36.0, speed=0.12, tilt=(-30, 10, 25), scale=0.65, eccentricity=0.6, file='Ice_20260702234839.bam'),
         # ]
 
-        # self.planets = [
-        #     Planet(rx=12.0, ry=9.0, speed=1.6, tilt=(15, 0, 5), scale=0.25, eccentricity=0.0, file='green.bam'),
-        #     Planet(rx=20.0, ry=15.0, speed=1.0, tilt=(-10, 25, 0), scale=0.4, eccentricity=0.2, file='snow.bam'),
-        #     Planet(rx=29.0, ry=21.75, speed=0.6, tilt=(5, 45, -5), scale=0.62, eccentricity=0.58, file='earth.bam'),
-        #     Planet(rx=38.0, ry=28.5, speed=0.3, tilt=(25, -20, 15), scale=0.45, eccentricity=0.45, file='desert.bam'),
-        #     Planet(rx=51.0, ry=38.25, speed=0.12, tilt=(-10, -55, 25), scale=0.65, eccentricity=0.6, file='Ice_20260702234839.bam'),
-        # ]
+        green = OrbitDetails(rx=12.0, ry=9.0, tilt=Vec3(15, 0, 5), eccentricity=0.0)
+        snow = OrbitDetails(rx=20.0, ry=15.0, tilt=Vec3(-10, 25, 0), eccentricity=0.2)
+        earth = OrbitDetails(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58)
+        desert = OrbitDetails(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45)
+        ice = OrbitDetails(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6)
 
-        # self.planets = [
-        #     Planet(Orbit(rx=12.0, ry=9.0, tilt=Vec3(15, 0, 5), eccentricity=0.0), speed=1.6, scale=0.25, file='green.bam'),
-        #     Planet(Orbit(rx=20.0, ry=15.0, tilt=Vec3(-10, 25, 0), eccentricity=0.2), speed=1.0, scale=0.4, file='snow.bam'),
-        #     Planet(Orbit(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58), speed=0.6, scale=0.62, file='earth.bam'),
-        #     Planet(Orbit(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45), speed=0.3, scale=0.45, file='desert.bam'),
-        #     Planet(Orbit(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6), speed=0.12, scale=0.65, file='Ice_20260702234839.bam'),
-        # ]
+        atmosphere = AtmosphereDetails(hpr=Vec3(0, -30, 0), scale=Vec3(6.5))
+        belt = AsteroidBeltDetails(orbit=desert, asteroids=self.asteroids)
+        ring = RingDetails(color=LColor(0.58, 0.67, 0.74, 0.6), hpr=Vec3(0, 45, 0), particle_size=1.1, particle_cnt=2000, thickness=4)
 
-
-        green = OrbitInfo(rx=12.0, ry=9.0, tilt=Vec3(15, 0, 5), eccentricity=0.0)
-        snow = OrbitInfo(rx=20.0, ry=15.0, tilt=Vec3(-10, 25, 0), eccentricity=0.2)
-        earth = OrbitInfo(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58)
-        desert = OrbitInfo(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45)
-        ice = OrbitInfo(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6)
-
-        atmosphere = AtmosphereInfo(hpr=Vec3(0, -30, 0), scale=Vec3(6.5))
-        belt = AsteroidBeltInfo(orbit=desert)
-        ring = RingInfo(color=LColor(0.58, 0.67, 0.74, 0.6), hpr=Vec3(0, 45, 0), particle_size=1.1, particle_cnt=2000, ring_thickness=4)
-
-        self.planet_info = [
-            PlanetInfo(name='green', orbit=green, speed=1.6, scale=0.25),
-            PlanetInfo(name='snow', orbit=snow, speed=1.0, scale=0.4, atmosphere=atmosphere),
-            PlanetInfo(name='earth', orbit=earth, speed=0.6, scale=0.62),
-            PlanetInfo(name='desert', orbit=desert, speed=0.3, scale=0.45, asteroid_belt=belt),
-            PlanetInfo(name='ice', orbit=ice, speed=0.12, scale=0.65, ring=ring),
+        planet_details = [
+            PlanetDetails(name='green', orbit=green, speed=1.6, scale=0.25),
+            PlanetDetails(name='snow', orbit=snow, speed=1.0, scale=0.4, atmosphere=atmosphere),
+            PlanetDetails(name='earth', orbit=earth, speed=0.6, scale=0.62),
+            PlanetDetails(name='desert', orbit=desert, speed=0.3, scale=0.45, asteroids=belt),
+            PlanetDetails(name='ice', orbit=ice, speed=0.12, scale=0.65, ring=ring),
         ]
 
         self.planets = []
-        self.create_planets()
+        self.create_planets(planet_details)
 
-    def create_planets(self):
-        for info in self.planet_info:
-            planet = Planet(*info.planet)
+    def create_planets(self, planet_details):
+        for details in planet_details:
+            planet = Planet(*details.planet)
             planet.reparent_to(self.root)
             self.planets.append(planet)
 
-            orbit_line = OrbitLine(info.orbit)
+            orbit_line = OrbitLine(details.orbit)
             orbit_line.reparent_to(self.root)
 
-            if info.asteroid_belt is not None:
-                belt = AsteroidBelt(self.asteroids, planet, info.orbit)
-                belt.set_color(LColor(0.6, 0.37, 0.19, 1.0))
+            if details.asteroids is not None:
+                belt = AsteroidBelt(*details.asteroids, planet)
                 belt.reparent_to(self.root)
                 self.planets.append(belt)
 
-            if info.atmosphere is not None:
-                atmosphere = Atmosphere(*info.atmosphere)
+            if details.atmosphere is not None:
+                atmosphere = Atmosphere(details.atmosphere)
                 atmosphere.reparent_to(planet)
 
-            if info.ring is not None:
-                # !!!!! 惑星のサイズを取得するメソッドをPlanetに持たせる。引数の渡し方をもう少し考える!!!!!
-                # !!!!! planetモジュールの各クラスに名前を渡せるようにする !!!!!
-                ring = ParticleRing(planet, *info.ring)
+            if details.ring is not None:
+                ring = ParticleRing(details.ring, planet)
                 ring.reparent_to(planet.directional_nd)
 
 
@@ -226,8 +206,3 @@ class Scene:
 
         for planet in self.planets:
             planet.revolve(sun_pos, dt)
-
-        # for i, planet in enumerate(self.planets):
-        #     planet.revolve(sun_pos, dt)
-        #     if i == 3:
-        #         self.debris.revolve(planet.angle, sun_pos)
