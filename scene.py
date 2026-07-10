@@ -8,7 +8,9 @@ from galaxy.galaxy import Galaxy
 from galaxy.sun import Sun
 from galaxy.planet import Planet, OrbitLine, ParticleRing, Atmosphere
 from galaxy.asteroid_belt import Asteroids, AsteroidBelt
+from galaxy.lights import GalaxyAmbientLight, SunPointLignt
 from noise import PerlinCurlNoise3D
+from planet_details import OrbitDetails, RingDetails, AsteroidBeltDetails, AtmosphereDetails, PlanetDetails
 
 
 class RotationalComponent:
@@ -40,77 +42,6 @@ class RotationalComponent:
         return f'noise_scale: {self.noise_scale}, flow_strength: {self.flow_strength}'
 
 
-@dataclass(frozen=True)
-class OrbitDetails:
-
-    rx: float
-    ry: float
-    tilt: Vec3
-    eccentricity: float
-    delay: float = None
-    planet_name: str = None
-
-    @property
-    def major_axis(self):
-        return self.rx * 2
-
-    @property
-    def minor_axis(self):
-        return self.ry * 2
-
-
-@dataclass(frozen=True)
-class RingDetails:
-
-    color: LColor
-    hpr: Vec3
-    particle_size: float
-    particle_cnt: int
-    thickness: float
-    planet_name: str = None
-
-
-class AsteroidBeltDetails(NamedTuple):
-
-    orbit: OrbitDetails
-    asteroids: NodePath
-
-
-@dataclass(frozen=True)
-class AtmosphereDetails:
-
-    hpr: Vec3
-    scale: float
-    planet_name: str = None
-
-
-@dataclass(frozen=True)
-class PlanetDetails:
-
-    name: str
-    speed: float
-    scale: float
-    orbit: OrbitDetails = None
-    ring: RingDetails = None
-    atmosphere: AtmosphereDetails = None
-    asteroids: AsteroidBeltDetails = None
-
-    def __post_init__(self):
-        if self.orbit:
-            object.__setattr__(self.orbit, 'planet_name', self.name)
-            print(self.orbit)
-        if self.ring:
-            object.__setattr__(self.ring, 'planet_name', self.name)
-            print(self.ring)
-        if self.atmosphere:
-            object.__setattr__(self.atmosphere, 'planet_name', self.name)
-            print(self.atmosphere)
-
-    @property
-    def planet(self):
-        return self.name, self.speed, self.scale, self.orbit
-
-
 class Scene:
 
     def __init__(self):
@@ -119,8 +50,12 @@ class Scene:
 
         self.galaxy = Galaxy()
 
-        self.sun = Sun(Point3(0, 0, 0))
+        self.sun_pos = Point3(0, 0, 0)
+        self.sun = Sun(self.sun_pos)
         self.sun.reparent_to(self.root)
+
+        self.ambient_light = GalaxyAmbientLight()
+        self.sun_light = SunPointLignt(self.sun)
 
         self.asteroids = Asteroids()
         # import pdb; pdb.set_trace()
@@ -176,33 +111,8 @@ class Scene:
                 ring = ParticleRing(details.ring, planet)
                 ring.reparent_to(planet.directional_nd)
 
-
-        # for planet in self.planets:
-        #     planet.reparent_to(self.root)
-
-        #     orbit_line = OrbitLine(planet.orbit)
-        #     orbit_line.reparent_to(self.root)
-
-
-        #     if planet.speed == 0.3:
-        #         self.debris = AsteroidBelt(self.asteroids, rx=38.0, ry=28.5, tilt=(25, -20, 15))
-        #         self.debris.set_color(LColor(0.6, 0.37, 0.19, 1.0))
-        #         self.debris.reparent_to(self.root)
-
-        #     if planet.speed == 1.0:
-        #         atmosphere = Atmosphere(Vec3(0, -30, 0), Vec3(6.5))
-        #         atmosphere.reparent_to(planet)
-
-        #     if planet.speed == 0.12:
-        #         # !!!!! 惑星のサイズを取得するメソッドをPlanetに持たせる。引数の渡し方をもう少し考える!!!!!
-        #         # !!!!! planetモジュールの各クラスに名前を渡せるようにする !!!!!
-
-        #         ring = ParticleRing(planet, LColor(0.58, 0.67, 0.74, 0.6), 45)
-        #         ring.reparent_to(planet.directional_nd)
-
-
     def update(self, dt):
-        sun_pos = self.sun.get_pos()
+        self.sun.update(dt)
 
         for planet in self.planets:
-            planet.revolve(sun_pos, dt)
+            planet.revolve(self.sun_pos, dt)

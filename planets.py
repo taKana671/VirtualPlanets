@@ -8,7 +8,6 @@ from panda3d.core import AntialiasAttrib
 from panda3d.core import load_prc_file_data
 
 from scene import Scene
-from lights import GalaxyAmbientLight, SunPointLignt
 
 
 load_prc_file_data("", """
@@ -40,8 +39,6 @@ class Planets(ShowBase):
         # self.particles = BoxCollection()
         # self.particles.create()
         self.scene = Scene()
-        self.ambient_light = GalaxyAmbientLight()
-        self.sun_light = SunPointLignt(self.scene.sun)
 
         self.clicked = False
         self.dragging = False

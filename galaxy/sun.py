@@ -40,8 +40,6 @@ class Sun(NodePath):
         self.flare = SolarFlare(pos)
         self.flare.reparent_to(self)
 
-        base.task_mgr.add(self.update, 'update_sun')
-
     def create_texture_img(self):
         noise = PerlinNoise()
         noise = Fractal2D(noise.pnoise2)
@@ -85,15 +83,15 @@ class Sun(NodePath):
         self.set_tex_scale(self.ts2, 1.5, 1.5)
         self.set_color_scale((2.0, 1.8, 1.2, 1.0))
 
-    def update(self, task):
-        dt = globalClock.get_dt()
-        offset_u1 = task.time * 0.03
-        offset_v1 = task.time * 0.02
+    def update(self, dt):
+        frame_time = globalClock.get_frame_time()
+
+        offset_u1 = frame_time * 0.03
+        offset_v1 = frame_time * 0.02
         self.set_tex_offset(self.ts1, offset_u1, offset_v1)
 
-        offset_u2 = task.time * -0.02
-        offset_v2 = task.time * -0.04
+        offset_u2 = frame_time * -0.02
+        offset_v2 = frame_time * -0.04
         self.set_tex_offset(self.ts2, offset_u2, offset_v2)
 
         self.set_h(self.get_h() + 10 * dt)
-        return task.cont
