@@ -82,7 +82,7 @@ class AsteroidBelt(NodePath):
                 is_front=True
             )
 
-    def revolve(self, sun_pos, _):
+    def update(self, _):
         tilt_rot = LRotation(*self.orbit.tilt)
 
         for asteroid in self.asteroids:
@@ -99,5 +99,5 @@ class AsteroidBelt(NodePath):
 
             pos = Vec3(x, y, 0)
             tilted_pos = tilt_rot.xform(pos)
-            final_pos = sun_pos + tilted_pos
+            final_pos = self.orbit.center + tilted_pos
             asteroid.model.set_pos(final_pos)

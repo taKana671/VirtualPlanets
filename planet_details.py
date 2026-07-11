@@ -1,7 +1,8 @@
 from typing import NamedTuple
 from dataclasses import dataclass
 
-from panda3d.core import NodePath, Vec3, LColor
+from panda3d.core import NodePath
+from panda3d.core import Vec3, Point3, LColor
 
 
 @dataclass(frozen=True)
@@ -18,7 +19,7 @@ class OrbitDetails:
     ry: float
     tilt: Vec3
     eccentricity: float
-    delay: float = None
+    center: Point3
     planet_name: str = None
 
     @property

@@ -41,6 +41,7 @@ void main(){
 
     // Determining the size and extent of Light.
     // To expand or contract the flare, adjust the value 0.23.
+    // float flare_base = 0.23 / (dist_to_sun + 0.065);
     float flare_base = 0.23 / (dist_to_sun + 0.065);
    
     // Make it fade out gradually.

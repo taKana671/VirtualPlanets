@@ -1,7 +1,7 @@
 import numpy as np
 
 from direct.showbase.ShowBaseGlobal import globalClock
-from panda3d.core import LColor
+from panda3d.core import LColor, Vec3
 from panda3d.core import NodePath, PandaNode
 from panda3d.core import PNMImage, Texture, TextureStage
 from panda3d.core import TransparencyAttrib
@@ -16,8 +16,7 @@ class SolarFlare(NodePath):
     def __init__(self, pos):
         super().__init__(PandaNode('solar_flare'))
         self.set_transparency(TransparencyAttrib.MAlpha)
-        self.set_pos(pos)
-        self.set_p(90)
+        self.set_pos_hpr(pos, Vec3(0, 90, 0))
         self.set_billboard_point_eye()
 
         shader = Shader.load(Shader.SL_GLSL, 'shaders/flare_v.glsl', 'shaders/flare_f.glsl')
@@ -28,13 +27,11 @@ class SolarFlare(NodePath):
 
 class Sun(NodePath):
 
-    def __init__(self, pos):
+    def __init__(self, pos, hpr):
         super().__init__(PandaNode('sun'))
-        self.model = base.loader.load_model('models/sun.bam')
+        self.model = base.loader.load_model('models/sphere.bam')
         self.model.reparent_to(self)
-        self.set_scale(2.0)
-        self.set_pos(pos)
-        # self.set_p(-40)
+        self.set_pos_hpr_scale(pos, hpr, Vec3(2))
         self.setup_textures()
 
         self.flare = SolarFlare(pos)

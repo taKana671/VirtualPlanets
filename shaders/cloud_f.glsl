@@ -38,7 +38,7 @@ void main(){
 
     // When making the gaps between the clouds more transparent, reduce the value of 0.40 to something like 0.30 or 0.25.  
     // When making the clouds more densely, increase the value of 0.40 to 0.45 or 0.50.
-    float cloud_mask = 1.0 - smoothstep(0.45, 0.65, cloud_noise);
+    float cloud_mask = 1.0 - smoothstep(0.50, 0.65, cloud_noise);
 
     // Calculate the dot product of the line of sight and the surface normal (the degree to which it faces forward)
     float v_dot_n = dot(normalize(v_view_dir), normalize(v_normal));

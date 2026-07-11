@@ -29,7 +29,7 @@ class Planet(NodePath):
         size = tip - end
         return size
 
-    def revolve(self, sun_pos, dt):
+    def update(self, dt):
         if self.angle > math.tau:
             self.angle -= math.tau
 
@@ -41,7 +41,7 @@ class Planet(NodePath):
         pos = Vec3(x, y, 0)
         tilt_rot = LRotation(*self.orbit.tilt)
         tilted_pos = tilt_rot.xform(pos)
-        final_pos = sun_pos + tilted_pos
+        final_pos = self.orbit.center + tilted_pos
         self.set_pos(final_pos)
 
         hpr = Vec3(self.directional_nd.get_h() + 50 * dt, 0, 0)
@@ -98,7 +98,7 @@ class Atmosphere(NodePath):
 
     def __init__(self, atm):
         super().__init__(PandaNode(f'{atm.planet_name}_atmosphere'))
-        model = base.loader.load_model('models/sun.bam')
+        model = base.loader.load_model('models/sphere.bam')
         model.reparent_to(self)
         self.set_hpr_scale(atm.hpr, atm.scale)
         self.set_transparency(TransparencyAttrib.MAlpha)

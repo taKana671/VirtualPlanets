@@ -1,16 +1,14 @@
-from dataclasses import dataclass
-from typing import NamedTuple
-
 from panda3d.core import NodePath
 from panda3d.core import Point3, Vec3, LColor
 
-from galaxy.galaxy import Galaxy
-from galaxy.sun import Sun
-from galaxy.planet import Planet, OrbitLine, ParticleRing, Atmosphere
-from galaxy.asteroid_belt import Asteroids, AsteroidBelt
-from galaxy.lights import GalaxyAmbientLight, SunPointLignt
+from galaxy import Asteroids, AsteroidBelt
+from galaxy import Galaxy
+from galaxy import Sun
+from galaxy import Planet, OrbitLine, ParticleRing, Atmosphere
+from galaxy import GalaxyAmbientLight, SunPointLignt
 from noise import PerlinCurlNoise3D
-from planet_details import OrbitDetails, RingDetails, AsteroidBeltDetails, AtmosphereDetails, PlanetDetails
+from planet_details import OrbitDetails, RingDetails, PlanetDetails
+from planet_details import AsteroidBeltDetails, AtmosphereDetails
 
 
 class RotationalComponent:
@@ -49,30 +47,19 @@ class Scene:
         self.root.reparent_to(base.render)
 
         self.galaxy = Galaxy()
-
-        self.sun_pos = Point3(0, 0, 0)
-        self.sun = Sun(self.sun_pos)
-        self.sun.reparent_to(self.root)
-
-        self.ambient_light = GalaxyAmbientLight()
-        self.sun_light = SunPointLignt(self.sun)
-
         self.asteroids = Asteroids()
-        # import pdb; pdb.set_trace()
 
-        # self.planets = [
-        #     Planet(rx=12.0, ry=9.0, speed=1.6, tilt=(15, 0, 5), scale=0.25, eccentricity=0.0, file='snow.bam'),
-        #     Planet(rx=20.0, ry=15.0, speed=1.0, tilt=(-10, 25, 0), scale=0.4, eccentricity=0.2, file='desert.bam'),
-        #     Planet(rx=29.0, ry=21.75, speed=0.6, tilt=(5, 45, -5), scale=0.6, eccentricity=0.45, file='earth.bam'),
-        #     Planet(rx=38.0, ry=28.5, speed=0.3, tilt=(25, -20, 15), scale=0.45, eccentricity=0.55, file='green.bam'),
-        #     Planet(rx=48.0, ry=36.0, speed=0.12, tilt=(-30, 10, 25), scale=0.65, eccentricity=0.6, file='Ice_20260702234839.bam'),
-        # ]
+        self.planets = []
+        sun_pos = Point3(0, 0, 0)
+        self.create_sun(sun_pos)
+        self.create_planets(sun_pos)
 
-        green = OrbitDetails(rx=12.0, ry=9.0, tilt=Vec3(15, 0, 5), eccentricity=0.0)
-        snow = OrbitDetails(rx=20.0, ry=15.0, tilt=Vec3(-10, 25, 0), eccentricity=0.2)
-        earth = OrbitDetails(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58)
-        desert = OrbitDetails(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45)
-        ice = OrbitDetails(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6)
+    def get_planet_details(self, sun_pos):
+        green = OrbitDetails(rx=12.0, ry=9.0, tilt=Vec3(15, 0, 5), eccentricity=0.0, center=sun_pos)
+        snow = OrbitDetails(rx=20.0, ry=15.0, tilt=Vec3(-10, 25, 0), eccentricity=0.2, center=sun_pos)
+        earth = OrbitDetails(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58, center=sun_pos)
+        desert = OrbitDetails(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45, center=sun_pos)
+        ice = OrbitDetails(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6, center=sun_pos)
 
         atmosphere = AtmosphereDetails(hpr=Vec3(0, -30, 0), scale=Vec3(6.5))
         belt = AsteroidBeltDetails(orbit=desert, asteroids=self.asteroids)
@@ -86,10 +73,19 @@ class Scene:
             PlanetDetails(name='ice', orbit=ice, speed=0.12, scale=0.65, ring=ring),
         ]
 
-        self.planets = []
-        self.create_planets(planet_details)
+        return planet_details
 
-    def create_planets(self, planet_details):
+    def create_sun(self, sun_pos):
+        sun = Sun(sun_pos, Vec3(0, -10, 0))
+        sun.reparent_to(self.root)
+        self.planets.append(sun)
+
+        self.ambient_light = GalaxyAmbientLight()
+        self.sun_light = SunPointLignt(sun)
+
+    def create_planets(self, sun_pos):
+        planet_details = self.get_planet_details(sun_pos)
+
         for details in planet_details:
             planet = Planet(*details.planet)
             planet.reparent_to(self.root)
@@ -112,7 +108,5 @@ class Scene:
                 ring.reparent_to(planet.directional_nd)
 
     def update(self, dt):
-        self.sun.update(dt)
-
         for planet in self.planets:
-            planet.revolve(self.sun_pos, dt)
+            planet.update(dt)
