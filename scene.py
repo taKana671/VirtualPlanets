@@ -1,4 +1,6 @@
 import random
+import time
+
 
 from panda3d.core import NodePath
 from panda3d.core import Point3, Vec3, LColor
@@ -11,6 +13,7 @@ from galaxy import GalaxyAmbientLight, SunPointLignt
 from galaxy import RoguePlanet
 from planet_details import OrbitDetails, RingDetails, PlanetDetails
 from planet_details import AsteroidBeltDetails, AtmosphereDetails
+from planet_details import RoguePlanetDetails, TextureAtlasDetails
 
 
 class Scene:
@@ -22,11 +25,6 @@ class Scene:
         self.galaxy = Galaxy()
         self.asteroids = Asteroids()
 
-        self.rogue_planet = RoguePlanet(
-            self.asteroids, Point3(-60, -40, 10), Point3(-10, -10, 2), 2)
-
-        # self.rogue_planet = RoguePlanet(
-        #     self.asteroids, Point3(60, 45, 8), Point3(8, 18, 2), 2)
 
         # self.rogue_routes = [
         #     {"start": Point3(-60, -40, 10), "end": Point3(-10, -10, 2), "scale": 2.0, "speed": 0.05, "spawn_time": 1.0},  # 1機目（既存）
@@ -34,6 +32,23 @@ class Scene:
         #     {"start": Point3(50, -45, 25),  "end": Point3(15, -5, -5),   "scale": 1.8, "speed": 0.06, "spawn_time": 30.0}, # 3機目（危機一髪）
         #     {"start": Point3(60, 45, 8),    "end": Point3(8, 18, 2),     "scale": 2.2, "speed": 0.03, "spawn_time": 45.0}  # 4機目（奥側）
         # ]
+
+        tex = TextureAtlasDetails('spark3.png', size=14, cols=8, rows=8)
+
+        rogue_planets = [
+            # RoguePlanetDetails(start=Point3(-60, -40, 10), end=Point3(-10, -10, 2), scale=2.0, speed=0.05, spawn_time=1.0),  # 1機目（既存）
+            # RoguePlanetDetails(start=Point3(-55, -50, -5), end=Point3(5, -15, -2), scale=2.5, speed=0.04, spawn_time=15.0), # 2機目（迫力）
+            # RoguePlanetDetails(start=Point3(50, -45, 25), end=Point3(15, -5, -5), scale=1.8, speed=0.06, spawn_time=30.0), # 3機目（危機一髪）
+            # RoguePlanetDetails(tex=tex, start=Point3(60, 45, 8), end=Point3(8, 18, 2), scale=2.2, speed=0.03, spawn_time=45.0)  # 4機目（奥側）
+            RoguePlanetDetails(tex=tex, start=Point3(15, 150, -180), end=Point3(-15, -25, 50), scale=2.2, speed=0.04, spawn_time=1.0),  # 4機目（奥側）
+            # RoguePlanetDetails(tex=tex, start=Point3(0, 150, -140), end=Point3(0, -25, 70), scale=2.2, speed=0.04, spawn_time=1.0)
+        ]
+
+        # self.rogue_planet = RoguePlanet(
+        #     self.asteroids, Point3(-60, -40, 10), Point3(-10, -10, 2), 2)
+
+        self.rogue_planet = RoguePlanet(
+            self.asteroids, *rogue_planets[0])
 
         # self.rogue_planet.set_pos(Point3(0, -30, 5))
         # self.rogue_planet.set_scale(2)
@@ -104,34 +119,14 @@ class Scene:
         if self.rogue_planet is not None:
             if (result := self.rogue_planet.update(dt)) is not None \
                     and not result:
+                print('rogue planet disappeard')
                 self.rogue_planet.remove_node()
                 self.rogue_planet = None
 
 
 
-
-
-# def update(self, dt):
-    #     if not self.is_shattered:
-    #         self.progress += self.travel_speed * dt
-
-    #         next_pos = self.start_pos + self.distance * self.progress
-    #         hpr = Vec3(self.get_hpr() + 50 * dt)
-    #         self.set_pos_hpr(next_pos, hpr)
-
-    #         if self.progress >= 0.85:
-    #             self.is_shattered = True
-
-    #         return None
-
-    #     self.progress += self.travel_speed * dt
-    #     next_pos = self.start_pos + self.distance * self.progress
-    #     self.set_pos(next_pos)
-    #     # self.set_pos_hpr(next_pos, hpr)
-
-    #     cnt = 0
-    #     for debri in self.debris:
-    #         if debri.update(dt):
-    #             cnt += 1
-
-    #     return cnt
+# なぜ他の惑星と「絶対にぶつからない」のか？
+# 一番大きな理由は、既存の5つの惑星の軌道リングが、
+# 太陽を中心に「それぞれバラバラな3Dの角度（tilt）」でダイナミックに斜めに傾いているからです。
+# 平面の2Dで見ると軌道線が網の目のように複雑に重なって見えますが、
+# 3D空間上では、それぞれの惑星の軌道は「ねじれの位置（高さや奥行きが違う立体交差）」になっています。

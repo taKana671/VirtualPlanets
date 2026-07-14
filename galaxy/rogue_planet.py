@@ -1,9 +1,19 @@
 import random
+import array
 
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3
+from panda3d.core import Vec3, TextureStage
+from panda3d.core import TransparencyAttrib
+from panda3d.core import ColorBlendAttrib, TextureStage
 
 from noise import PerlinCurlNoise3D
+from shapes import PlaneForTextureAtlas
+
+
+def nonzero_random(a, b):
+    while True:
+        if (num := round(random.uniform(a, b))) != 0:
+            return num
 
 
 class RotationalComponent:
@@ -45,17 +55,15 @@ class Debri:
         self.rotational_component = rotational_component
         self.scale_speed = scale_speed
         self.model.set_pos(self.default_pos)
-        self.is_removed = False
 
     def update(self, dt):
-        if self.is_removed:
-            # if self.is_empty():
+        if self.model is None:
             return False
 
         if (scale := self.model.get_scale() - self.scale_speed * dt) <= 0:
             self.model.remove_node()
             self.model = None
-            self.is_removed = True
+            # self.is_removed = True
             return False
 
         pos = self.model.get_pos()
@@ -71,28 +79,38 @@ class Debri:
 
 class RoguePlanet(NodePath):
 
-    def __init__(self, asteroids, start_pos, end_pos, scale=1.5, travel_speed=0.05):
+    def __init__(self, asteroids, texture_atlas, start_pos, end_pos, scale=1.5, travel_speed=0.05, spawn=None):
         super().__init__(PandaNode('rogue_planet'))
+        self.texture_atlas = texture_atlas
         self.start_pos = start_pos
         self.end_pos = end_pos
         self.distance = self.end_pos - self.start_pos
         self.travel_speed = travel_speed
 
         self.debris = []
-        self.rotational_component = RotationalComponent([0, 0, 300], [0, 0, 600])
+        # self.rotational_component = RotationalComponent([0, 0, 300], [0, 0, 600])
         self.create_rogue_planet(asteroids)
 
         self.set_pos_hpr_scale(self.start_pos, Vec3(1), scale)
-        self.set_texture(base.loader.load_texture('moon_tex.jpg'))
+        self.set_texture(base.loader.load_texture('phobos_tex.jpg'))
 
         self.progress = 0.0
         self.is_shattered = False
 
+        self.effect = False
+
     def create_rogue_planet(self, asteroids):
+        noise_scale = random.uniform(0.9, 3)
+        flow_strength = nonzero_random(-3, 3)
+        rotational_component = RotationalComponent(
+            [0, 0, 300], [0, 0, 600], noise_scale, flow_strength)
+
         for asteroid in asteroids.get_children():
             default_pos = asteroid.get_pos()
             model = asteroid.copy_to(self)
-            debri = Debri(model, default_pos, self.rotational_component)
+            scale_speed = round(random.uniform(0.1, 0.3), 2)
+            # debri = Debri(model, default_pos, self.rotational_component, scale_speed)
+            debri = Debri(model, default_pos, rotational_component, scale_speed)
             self.debris.append(debri)
 
     def update(self, dt):
@@ -107,9 +125,16 @@ class RoguePlanet(NodePath):
                 if self.progress >= 0.85:
                     self.is_shattered = True
 
+                    self.vfx = VFX(self.texture_atlas)
+                    self.effect = True
+
                 return None
 
             self.set_pos(next_pos)
+
+        if self.effect:
+            if not self.vfx.run(self.get_pos()):
+                self.effect = False
 
         cnt = 0
         for debri in self.debris:
@@ -117,3 +142,71 @@ class RoguePlanet(NodePath):
                 cnt += 1
 
         return cnt
+
+
+class TextureAtlas(NodePath):
+
+    def __init__(self, file_name, size=1, cols=8, rows=8):
+        super().__init__(PandaNode('texture_atlas'))
+        self.div_u = 1 / cols
+        self.div_v = 1 / rows
+
+        self.panel = PlaneForTextureAtlas(self.div_u, self.div_v, size).create()
+        self.panel.reparent_to(self)
+
+        self.set_transparency(TransparencyAttrib.MAlpha)
+
+        # self.set_attrib(ColorBlendAttrib.make(
+        #     ColorBlendAttrib.M_add,
+        #     ColorBlendAttrib.O_incoming_alpha,
+        #     ColorBlendAttrib.O_one
+        # ))
+
+        self.tex = base.loader.load_texture(f'textures/{file_name}')
+        self.set_texture(TextureStage.get_default(), self.tex, 1)
+        self.set_bin('fixed', 40)
+        self.set_depth_write(False)
+        self.set_depth_test(False)
+        self.set_light_off()
+        self.flatten_light()
+        self.set_billboard_point_eye()
+
+        self.pos_u = -self.div_u
+        self.pos_v = 0
+
+    def animate(self):
+        self.pos_u += self.div_u
+
+        # go to the next row
+        if self.pos_u >= 1.0:
+            self.pos_u = 0
+            self.pos_v -= self.div_v
+
+        # comes to the end
+        if self.pos_v <= -1.0:
+            return False
+
+        self.set_tex_offset(TextureStage.get_default(), self.pos_u, self.pos_v)
+        return True
+
+
+class VFX:
+    """Use a texture atlas to depict the light emitted when the rogue planet explodes.
+        tex (planet_details.TextureAtlasDetails):
+            Details of the texture atlas, including an image filename, size, cols and rows.
+    """
+
+    # def __init__(self, file_name, size=10, cols=8, rows=8):
+    def __init__(self, tex):
+        self.texture_atlas = TextureAtlas(tex.file_name, tex.size, tex.cols, tex.cols)
+        self.texture_atlas.reparent_to(base.render)
+
+    def run(self, pos):
+        self.texture_atlas.set_pos(pos)
+
+        if not self.texture_atlas.animate():
+            self.texture_atlas.remove_node()
+            self.texture_atlas = None
+            return False
+
+        return True

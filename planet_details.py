@@ -106,3 +106,39 @@ class PlanetDetails:
     @property
     def planet(self):
         return self.name, self.speed, self.scale, self.orbit
+
+
+class TextureAtlasDetails(NamedTuple):
+    """Details on the atlas textures Used in rogue planet
+        file_name: Image file name
+        size: image size
+        cols:
+            A value indicating how many small images of the same size fit
+            horizontally within a single image.
+        rows:
+            A value indicating how many small images of the same size fit
+            vertically within a single image.
+    """
+
+    file_name: str
+    size: float = 1
+    cols: int = 8
+    rows: int = 8
+
+
+# @dataclass(frozen=True)
+class RoguePlanetDetails(NamedTuple):
+    """Rogue planet Details
+        start: Start point
+        end: The point where the explosion begins
+        scale: Planet's Scale
+        speed: Movement Speed
+        spawn_time: Interval between the appearance of rogue planets
+    """
+
+    tex: TextureAtlasDetails
+    start: Point3
+    end: Point3
+    scale: float
+    speed: float
+    spawn_time: float
