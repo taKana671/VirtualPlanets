@@ -1,10 +1,9 @@
 import random
-import array
 
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Vec3, TextureStage
 from panda3d.core import TransparencyAttrib
-from panda3d.core import ColorBlendAttrib, TextureStage
+from panda3d.core import TextureStage
+from panda3d.core import Vec3
 
 from noise import PerlinCurlNoise3D
 from shapes import PlaneForTextureAtlas
@@ -51,10 +50,9 @@ class Debri:
 
     def __init__(self, model, default_pos, rotational_component, scale_speed=0.2):
         self.model = model
-        self.default_pos = default_pos
+        self.model.set_pos(default_pos)
         self.rotational_component = rotational_component
         self.scale_speed = scale_speed
-        self.model.set_pos(self.default_pos)
 
     def update(self, dt):
         if self.model is None:
@@ -63,7 +61,6 @@ class Debri:
         if (scale := self.model.get_scale() - self.scale_speed * dt) <= 0:
             self.model.remove_node()
             self.model = None
-            # self.is_removed = True
             return False
 
         pos = self.model.get_pos()
@@ -79,7 +76,7 @@ class Debri:
 
 class RoguePlanet(NodePath):
 
-    def __init__(self, asteroids, texture_atlas, start_pos, end_pos, scale=1.5, travel_speed=0.05, spawn=None):
+    def __init__(self, asteroids, texture_atlas, start_pos, end_pos, scale, travel_speed):
         super().__init__(PandaNode('rogue_planet'))
         self.texture_atlas = texture_atlas
         self.start_pos = start_pos
@@ -88,28 +85,27 @@ class RoguePlanet(NodePath):
         self.travel_speed = travel_speed
 
         self.debris = []
-        # self.rotational_component = RotationalComponent([0, 0, 300], [0, 0, 600])
         self.create_rogue_planet(asteroids)
 
         self.set_pos_hpr_scale(self.start_pos, Vec3(1), scale)
-        self.set_texture(base.loader.load_texture('phobos_tex.jpg'))
+        self.set_texture(base.loader.load_texture('textures/silver.jpg'))
 
         self.progress = 0.0
         self.is_shattered = False
-
         self.effect = False
 
     def create_rogue_planet(self, asteroids):
-        noise_scale = random.uniform(0.9, 3)
-        flow_strength = nonzero_random(-3, 3)
         rotational_component = RotationalComponent(
-            [0, 0, 300], [0, 0, 600], noise_scale, flow_strength)
+            offset_1=[0, 0, 300],
+            offset_2=[0, 0, 600],
+            noise_scale=random.uniform(0.9, 3),
+            flow_strength=nonzero_random(-3, 3)
+        )
 
         for asteroid in asteroids.get_children():
             default_pos = asteroid.get_pos()
             model = asteroid.copy_to(self)
             scale_speed = round(random.uniform(0.1, 0.3), 2)
-            # debri = Debri(model, default_pos, self.rotational_component, scale_speed)
             debri = Debri(model, default_pos, rotational_component, scale_speed)
             self.debris.append(debri)
 
@@ -124,11 +120,10 @@ class RoguePlanet(NodePath):
 
                 if self.progress >= 0.85:
                     self.is_shattered = True
-
                     self.vfx = VFX(self.texture_atlas)
                     self.effect = True
 
-                return None
+                return True
 
             self.set_pos(next_pos)
 
@@ -141,7 +136,7 @@ class RoguePlanet(NodePath):
             if debri.update(dt):
                 cnt += 1
 
-        return cnt
+        return cnt > 0
 
 
 class TextureAtlas(NodePath):
@@ -155,13 +150,6 @@ class TextureAtlas(NodePath):
         self.panel.reparent_to(self)
 
         self.set_transparency(TransparencyAttrib.MAlpha)
-
-        # self.set_attrib(ColorBlendAttrib.make(
-        #     ColorBlendAttrib.M_add,
-        #     ColorBlendAttrib.O_incoming_alpha,
-        #     ColorBlendAttrib.O_one
-        # ))
-
         self.tex = base.loader.load_texture(f'textures/{file_name}')
         self.set_texture(TextureStage.get_default(), self.tex, 1)
         self.set_bin('fixed', 40)
@@ -171,6 +159,7 @@ class TextureAtlas(NodePath):
         self.flatten_light()
         self.set_billboard_point_eye()
 
+        # starting position
         self.pos_u = -self.div_u
         self.pos_v = 0
 
@@ -196,9 +185,8 @@ class VFX:
             Details of the texture atlas, including an image filename, size, cols and rows.
     """
 
-    # def __init__(self, file_name, size=10, cols=8, rows=8):
     def __init__(self, tex):
-        self.texture_atlas = TextureAtlas(tex.file_name, tex.size, tex.cols, tex.cols)
+        self.texture_atlas = TextureAtlas(*tex)
         self.texture_atlas.reparent_to(base.render)
 
     def run(self, pos):
