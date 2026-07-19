@@ -75,6 +75,19 @@ class AtmosphereDetails:
 
 
 @dataclass(frozen=True)
+class TrailDetailds:
+    """Details on using MotionTrail to depict a comet's tail
+        radius: Radius of a circle as the trail's shape
+        length: The length of motion trails
+        moving_object_name: The name of a moving object tracked by MotionTrail
+    """
+
+    radius: float
+    length: int = 1
+    moving_object_name: str = None
+
+
+@dataclass(frozen=True)
 class PlanetDetails:
     """Planet Details
         name: planet name
@@ -83,6 +96,7 @@ class PlanetDetails:
         ring: Details of a ring of particles surrounding a planet; default is None.
         atmosphere: Details of a planetary atmosphere; default is None.
         asteroids: Details of an asteroid belt; default is None.
+        trail: Details of motion trail; default is None.
     """
 
     name: str
@@ -92,6 +106,7 @@ class PlanetDetails:
     ring: RingDetails = None
     atmosphere: AtmosphereDetails = None
     asteroids: AsteroidBeltDetails = None
+    trail: TrailDetailds = None
 
     def __post_init__(self):
         if self.orbit:
@@ -102,6 +117,9 @@ class PlanetDetails:
 
         if self.atmosphere:
             object.__setattr__(self.atmosphere, 'planet_name', self.name)
+
+        if self.trail:
+            object.__setattr__(self.trail, 'moving_object_name', self.name)
 
     @property
     def planet(self):

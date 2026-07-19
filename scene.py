@@ -1,19 +1,19 @@
 import random
 from collections import deque
 
-
 from panda3d.core import NodePath
 from panda3d.core import Point3, Vec3, LColor
 
 from galaxy import Asteroids, AsteroidBelt
 from galaxy import Galaxy
 from galaxy import Sun
-from galaxy import Planet, OrbitLine, ParticleRing, Atmosphere
+from galaxy import Planet, OrbitLine, ParticleRing, Atmosphere, Tail
 from galaxy import GalaxyAmbientLight, SunPointLignt
 from galaxy import RoguePlanet
 from planet_details import OrbitDetails, RingDetails, PlanetDetails
 from planet_details import AsteroidBeltDetails, AtmosphereDetails
 from planet_details import RoguePlanetDetails, AtlasDetails
+from planet_details import TrailDetailds
 
 
 class Scene:
@@ -41,10 +41,12 @@ class Scene:
         earth = OrbitDetails(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58, center=sun_pos)
         desert = OrbitDetails(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45, center=sun_pos)
         ice = OrbitDetails(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6, center=sun_pos)
+        sakura = OrbitDetails(rx=54.0, ry=40.5, tilt=Vec3(-10, 55, 80), eccentricity=0.4, center=sun_pos)
 
         atmosphere = AtmosphereDetails(hpr=Vec3(0, -30, 0), scale=Vec3(6.5))
         belt = AsteroidBeltDetails(orbit=desert, asteroids=self.asteroids)
         ring = RingDetails(color=LColor(0.58, 0.67, 0.74, 0.6), hpr=Vec3(0, 45, 0), particle_size=1.1, particle_cnt=2000, thickness=4)
+        trail = TrailDetailds(radius=1.2, length=2)
 
         planet_details = [
             PlanetDetails(name='green', orbit=green, speed=1.6, scale=0.25),
@@ -52,6 +54,7 @@ class Scene:
             PlanetDetails(name='earth', orbit=earth, speed=0.6, scale=0.62),
             PlanetDetails(name='desert', orbit=desert, speed=0.3, scale=0.45, asteroids=belt),
             PlanetDetails(name='ice', orbit=ice, speed=0.12, scale=0.65, ring=ring),
+            PlanetDetails(name='sakura', orbit=sakura, speed=0.5, scale=0.15, trail=trail),
         ]
 
         return planet_details
@@ -100,6 +103,10 @@ class Scene:
             if details.ring is not None:
                 ring = ParticleRing(details.ring, planet)
                 ring.reparent_to(planet.directional_nd)
+
+            if details.trail is not None:
+                trail = Tail(planet, details.trail)
+                self.planets.append(trail)
 
     def update(self, dt):
         for planet in self.planets:

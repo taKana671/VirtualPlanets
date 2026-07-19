@@ -40,21 +40,23 @@ void main(){
     // ###############
     // create nebula
     // ###############
-    vec2 nebula_uv = uv_aspect * 1.2 + vec2(osg_FrameTime * 0.003, osg_FrameTime * 0.001);
-    
-    float n1 = fbm(uv_aspect * 1.5 + vec2(osg_FrameTime * 0.002, 0.0));
-    float n2 = fbm(uv_aspect * 3.0 - vec2(0.0, osg_FrameTime * 0.001));
-    
+    // Let the main stream of gas flow very slowly from right to left.
+    vec2 nebula_uv1 = uv_aspect * 1.3 + vec2(osg_FrameTime * 0.0015, osg_FrameTime * 0.0005);
+    // Flow the fine mist (details) in the gas while distorting it slightly in the opposite direction.
+    vec2 nebula_uv2 = uv_aspect * 2.6 - vec2(osg_FrameTime * 0.0010, osg_FrameTime * 0.0012);
+    float n1 = fbm(nebula_uv1);
+    float n2 = fbm(nebula_uv2 + n1 * 0.15); 
+
     float nebula_noise = mix(n1, n2, 0.4);
     float mask_outer = smoothstep(0.45, 0.70, nebula_noise);
     float mask_inner = smoothstep(0.55, 0.75, nebula_noise);
 
-    vec3 nebula_color = vec3(0.08, 0.04, 0.20) * mask_outer; // 広がる深い紫
-    nebula_color += vec3(0.18, 0.05, 0.15) * mask_inner;   // 中心にいくほど鮮やかなマゼンタ
+    vec3 nebula_color = vec3(0.08, 0.04, 0.20) * mask_outer;
+    nebula_color += vec3(0.18, 0.05, 0.15) * mask_inner;
 
-    // // ###############
-    // // create solar flare
-    // // ###############
+    // ###############
+    // create solar flare
+    // ###############
     // vec2 sun_pos = vec2(0.0, 0.0);
     // float dist_to_sun = length(uv_aspect - sun_pos);
 
@@ -92,6 +94,5 @@ void main(){
     vec3 circle = vec3(1.0 - smoothstep(length(fv - .25), .0, (sin(uv.x * 40.0) * cos(uv.y * 50.0)) * .015)); 
     vec3 final_starts = circle + clamp(cell_noise, .0, 1.0);
 
-    // fragColor = vec4(final_starts + nebula_color + flare_color, 1.0);
     fragColor = vec4(final_starts + nebula_color, 1.0);
 }

@@ -1,11 +1,16 @@
 import math
+import random
 
 import numpy as np
+from direct.motiontrail.MotionTrail import MotionTrail
+from direct.showbase.ShowBaseGlobal import globalClock
 from panda3d.core import NodePath, PandaNode
-from panda3d.core import Point3, Vec3, LRotation
+from panda3d.core import Point3, Vec3, LRotation, LColor
 from panda3d.core import TransparencyAttrib
 from panda3d.core import Shader
+from panda3d.core import Texture, TextureStage
 
+from noise import Fractal2D, PerlinNoise
 from shapes import EllipticalPrism, Particles
 
 
@@ -106,3 +111,90 @@ class Atmosphere(NodePath):
 
         cloud_shader = Shader.load(Shader.SL_GLSL, 'shaders/cloud_v.glsl', 'shaders/cloud_f.glsl')
         model.set_shader(cloud_shader)
+
+
+class Tail(MotionTrail):
+
+    def __init__(self, planet, trail):
+        super().__init__(f'{trail.moving_object_name}_tail', planet.model)
+        self.create_motion_trail(trail)
+
+    def create_noise_texture(self):
+        perlin = PerlinNoise()
+        noise = Fractal2D(perlin.pnoise2)
+
+        size = 512
+        t = random.uniform(0, 1000)
+
+        arr = np.array(
+            [noise.fractal(x + t, y + t)
+                for y in np.linspace(0, 4, size)
+                for x in np.linspace(0, 4, size)]
+        )
+
+        # Increase the black areas of the fractal noise to make
+        # the contrast between black and white more distinct.
+        min_val = np.min(arr)
+        max_val = np.max(arr)
+        arr = (arr - min_val) / (max_val - min_val)
+        arr = np.power(arr, 1.5) * 1.2
+
+        # Change shape from (size ** 2,) to (size, size, 3)
+        arr = arr.reshape((size, size))
+        arr = np.repeat(arr[:, :, np.newaxis], 3, axis=2)
+        arr = np.clip(arr * 255, a_min=0, a_max=255).astype(np.uint8)
+        # cv2.imwrite('sample.png', arr)
+
+        # Sets the texture as an empty 2-d texture.
+        tex = Texture('noise_image')
+        tex.setup_2d_texture(
+            size,
+            size,
+            Texture.T_unsigned_byte,
+            Texture.F_rgb
+        )
+
+        # Fill the image data.
+        tex.set_ram_image(arr)
+        return tex
+
+    def create_motion_trail(self, trail):
+        tex = self.create_noise_texture()
+        self.set_texture(tex)
+
+        self.register_motion_trail()
+        self.geom_node_path.reparent_to(base.render)
+        # A larger time window creates longer motion trails.
+        self.time_window = trail.length
+
+        colors = (
+            LColor(0.98, 0.75, 0.95, 1.0),
+            LColor(0.90, 0.80, 0.98, 1.0),
+            LColor(0.65, 0.88, 0.98, 1.0),
+            LColor(0.55, 0.92, 0.95, 1.0)
+        )
+
+        theta = np.linspace(0, 2 * np.pi, 13)
+        z_arr = trail.radius * np.cos(theta)
+        x_arr = trail.radius * np.sin(theta)
+
+        # Define the shape of the cross-section polygon that is to be
+        # extruded along the motion trail.
+        for i, (x, z) in enumerate(zip(x_arr, z_arr)):
+            vertex = Point3(x, 0, z)
+            self.add_vertex(vertex)
+
+            start_color = colors[i % len(colors)] * 1.1
+            end_color = LColor(0.58, 0.91, 0.95, 1.0)
+            # end_color = LColor(0.75, 0.85, 0.98, 1.0)
+            self.set_vertex_color(i, start_color, end_color)
+
+        self.update_vertices()
+        # LerpTexOffsetInterval(self.geom_node_path, 4, (1, 1), (1, 0)).loop()
+
+    def update(self, _):
+        frame_time = globalClock.get_frame_time()
+        offset_v = frame_time * 0.4
+        offset_v %= 1
+
+        self.geom_node_path.set_tex_offset(TextureStage.get_default(), 0, offset_v)

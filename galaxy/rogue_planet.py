@@ -70,7 +70,11 @@ class Debri:
         angular_speed = random.choice(Debri.angular_speed)
         hpr = self.model.get_hpr() + Vec3(angular_speed * dt)
 
-        self.model.set_pos_hpr_scale(next_pos, hpr, scale)
+        try:
+            self.model.set_pos_hpr_scale(next_pos, hpr, scale)
+        except Exception:
+            print(next_pos, hpr, scale)
+
         return True
 
 
@@ -88,7 +92,7 @@ class RoguePlanet(NodePath):
         self.create_rogue_planet(asteroids)
 
         self.set_pos_hpr_scale(self.start_pos, Vec3(1), scale)
-        self.set_texture(base.loader.load_texture('textures/silver.jpg'))
+        self.set_texture(base.loader.load_texture('textures/phobos.jpg'))
 
         self.progress = 0.0
         self.is_shattered = False
