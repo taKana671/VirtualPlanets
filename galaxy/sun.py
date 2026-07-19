@@ -85,10 +85,10 @@ class Sun(NodePath):
 
         offset_u1 = frame_time * 0.03
         offset_v1 = frame_time * 0.02
-        self.set_tex_offset(self.ts1, offset_u1, offset_v1)
+        self.set_tex_offset(self.ts1, offset_u1 % 1.0, offset_v1 % 1.0)
 
         offset_u2 = frame_time * -0.02
         offset_v2 = frame_time * -0.04
-        self.set_tex_offset(self.ts2, offset_u2, offset_v2)
+        self.set_tex_offset(self.ts2, offset_u2 % 1.0, offset_v2 % 1.0)
 
         self.set_h(self.get_h() + 10 * dt)
