@@ -70,6 +70,7 @@ The comet's tail is rendered using panda3D's MotionTrail.
 * numpy 2.2.6
 * scipy 1.16.2
 * shapely 2.1.2
+* matplotlib 3.10.7
 * opencv-contrib-python 4.11.0.86
 * opencv-python 4.11.0.86
 
@@ -87,6 +88,9 @@ git clone --recursive https://github.com/taKana671/VirtualPlanets.git
 ```
 
 ### Build cython code.
+
+If you do not build the Cython code, Python code will be used to generate noise. <br>
+Python code takes longer to generate noise than Cython code.
 
 ```
 cd VirtualPlanets
