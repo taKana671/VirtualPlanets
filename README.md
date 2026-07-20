@@ -103,7 +103,7 @@ If the error like "ModuleNotFoundError: No module named ‘distutils’" occurs,
 pip install setuptools
 ```
 
-### Run fluid_cube.py
+### Run virtual_planets.py
 
 ```
 python virtual_planets.py
