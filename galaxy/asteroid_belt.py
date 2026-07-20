@@ -19,7 +19,7 @@ class Asteroids(NodePath):
         self.create_asteroids()
 
     def create_asteroids(self):
-        for i, (polygons, spherical_idx) in enumerate(VoronoiClip2Sphere(self.cut_points)):
+        for polygons, spherical_idx in VoronoiClip2Sphere(self.cut_points):
             model_creator = ShatteredSphere(polygons, spherical_idx, self.max_depth, self.scale)
             asteroid = model_creator.create()
             asteroid.set_pos(Point3(*model_creator.polyhedron_org_center))

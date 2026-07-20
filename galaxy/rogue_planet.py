@@ -70,11 +70,7 @@ class Debri:
         angular_speed = random.choice(Debri.angular_speed)
         hpr = self.model.get_hpr() + Vec3(angular_speed * dt)
 
-        try:
-            self.model.set_pos_hpr_scale(next_pos, hpr, scale)
-        except Exception:
-            print(next_pos, hpr, scale)
-
+        self.model.set_pos_hpr_scale(next_pos, hpr, scale)
         return True
 
 
@@ -146,12 +142,13 @@ class RoguePlanet(NodePath):
 class TextureAtlas(NodePath):
 
     def __init__(self, file_name, size=1, cols=8, rows=8):
-        super().__init__(PandaNode('texture_atlas'))
+        super().__init__('texture_atlas')
         self.div_u = 1 / cols
         self.div_v = 1 / rows
 
-        self.panel = PlaneForTextureAtlas(self.div_u, self.div_v, size).create()
-        self.panel.reparent_to(self)
+        panel = PlaneForTextureAtlas(self.div_u, self.div_v, size)
+        geomnode = panel.get_geom_node()
+        self.attach_new_node(geomnode)
 
         self.set_transparency(TransparencyAttrib.MAlpha)
         self.tex = base.loader.load_texture(f'textures/{file_name}')

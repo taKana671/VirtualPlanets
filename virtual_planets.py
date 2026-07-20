@@ -21,7 +21,7 @@ load_prc_file_data("", """
     multisamples 2""")
 
 
-class Planets(ShowBase):
+class VirtualPlanets(ShowBase):
 
     def __init__(self):
         super().__init__()
@@ -40,7 +40,7 @@ class Planets(ShowBase):
         self.clicked = False
         self.dragging = False
         self.before_mouse_pos = None
-        self.do_move = False
+        self.dragging_start_time = 0
 
         self.accept('escape', sys.exit)
         self.accept('mouse1', self.mouse_click)
@@ -93,5 +93,5 @@ class Planets(ShowBase):
 
 
 if __name__ == '__main__':
-    app = Planets()
+    app = VirtualPlanets()
     app.run()

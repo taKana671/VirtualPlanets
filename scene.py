@@ -22,7 +22,7 @@ class Scene:
         self.root = NodePath('root')
         self.root.reparent_to(base.render)
 
-        self.galaxy = Galaxy()
+        _ = Galaxy()
         self.asteroids = Asteroids()
 
         self.planets = []
@@ -30,6 +30,7 @@ class Scene:
         self.create_sun(sun_pos)
         self.create_planets(sun_pos)
 
+        # Create deque.
         self.rogue_queue = self.get_rogue_planet_details()
         self.spawn_time = 20
         self.spawn_timer = 0
@@ -41,7 +42,7 @@ class Scene:
         earth = OrbitDetails(rx=29.0, ry=21.75, tilt=Vec3(5, 45, -5), eccentricity=0.58, center=sun_pos)
         desert = OrbitDetails(rx=38.0, ry=28.5, tilt=Vec3(25, -20, 15), eccentricity=0.45, center=sun_pos)
         ice = OrbitDetails(rx=51.0, ry=38.25, tilt=Vec3(-10, -55, 25), eccentricity=0.6, center=sun_pos)
-        sakura = OrbitDetails(rx=54.0, ry=40.5, tilt=Vec3(-10, 55, 80), eccentricity=0.4, center=sun_pos)
+        sakura = OrbitDetails(rx=54.0, ry=40.5, tilt=Vec3(-10, 55, 80), eccentricity=0.55, center=sun_pos)
 
         atmosphere = AtmosphereDetails(hpr=Vec3(0, -30, 0), scale=Vec3(6.5))
         belt = AsteroidBeltDetails(orbit=desert, asteroids=self.asteroids)
@@ -77,8 +78,8 @@ class Scene:
         sun.reparent_to(self.root)
         self.planets.append(sun)
 
-        self.ambient_light = GalaxyAmbientLight()
-        self.sun_light = SunPointLignt(sun)
+        _ = GalaxyAmbientLight()
+        _ = SunPointLignt(sun)
 
     def create_planets(self, sun_pos):
         planet_details = self.get_planet_details(sun_pos)

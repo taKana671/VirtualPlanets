@@ -143,6 +143,7 @@ class Tail(MotionTrail):
         arr = arr.reshape((size, size))
         arr = np.repeat(arr[:, :, np.newaxis], 3, axis=2)
         arr = np.clip(arr * 255, a_min=0, a_max=255).astype(np.uint8)
+        # import cv2
         # cv2.imwrite('sample.png', arr)
 
         # Sets the texture as an empty 2-d texture.
